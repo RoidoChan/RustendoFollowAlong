@@ -3,3 +3,12 @@
 [[package]]
 name = "Rustendo"
 version = "0.1.0"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
+name = "byteorder"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96c8b41881888cc08af32d47ac4edd52bc7fa27fef774be47a92443756451304"
