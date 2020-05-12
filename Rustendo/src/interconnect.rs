@@ -34,13 +34,14 @@ impl Interconnect {
             println!("unused mem read");
             0
         }else if addr >= 0x404_0000 && addr < 0x404_1000 {
-            println!("SP register read");
-            0
+            println!("SP register read {:#x}", addr);
+            // on power up, contains 1
+            1
         }else if addr >= 0x0410_0000 && addr < 0x041F_FFFF{
                 println!("DP command registers");
                 0
         }else if addr >= 0x0480_0018 && addr < 0x0480_001B{
-            println!("SI status reg read");
+            println!("SI status reg read {:#x}", addr);
             0
         }else if addr >= 0x0600_0000 && addr < 0x07FF_FFFF{
                 println!("N64 DD drive read");
@@ -56,7 +57,7 @@ impl Interconnect {
             let rel_addr = addr - 0x1fc0_0000;
             BigEndian::write_u32(&mut self.ram[rel_addr as usize..], value)
         }else if addr >= 0x404_0000 && addr < 0x404_1000 {
-            println!("SP register write");
+            println!("SP register write {:#x}", addr);
         }else{
             panic!("bad physical address {:#x}", addr)
         }

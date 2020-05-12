@@ -20,7 +20,9 @@ pub struct Cpu {
     reg_LLbit : bool, // TODO enum
 
     copro0 : cp0::CP0,
-    interconnect: interconnect::Interconnect
+    interconnect: interconnect::Interconnect,
+
+    delay : bool
 }
 
 impl Cpu {
@@ -39,7 +41,9 @@ impl Cpu {
             reg_LLbit : false, // TODO enum
         
             copro0 : cp0::CP0::new(),
-            interconnect: interconnect
+            interconnect: interconnect,
+
+            delay : false
         }
     }
 
@@ -53,7 +57,12 @@ impl Cpu {
         loop {
             let opword = self.read_word(self.reg_pc);
             self.decode_instruction(opword);
-            self.reg_pc += 4;
+
+            if !self.delay {
+                self.reg_pc += 4;
+            } else{
+                self.delay = false;
+            }
         }
     }
 
@@ -65,21 +74,20 @@ impl Cpu {
 
         let opcode = (opword >> 26) & 0x3F;
             match opcode {
-                0x01 => self.bgez_instr(opword),
-                0xF  => self.lui_instr(opword),
-                0x10 => self.mtc0_instr(opword),
-                0xD  => self.ori_instr(opword),
-                0xC  => self.andi_instr(opword),
-                0x23 => self.load_word_instr(opword),
-                //0x9  => self.load_immediate_instr(opword),
-                0x2B => self.store_word_instr(opword),
-                0x9  => self.add_imm_unsigned_instr(opword),
-                0x8  => self.add_imm_instr(opword),
-                0x14 => self.branch_on_equal_likely_instr(opword),
-                0x15 => self.branch_on_not_equal_likely_instr(opword),
+                0x0  => self.special_instr(opword),
+                0x1  => self.bgez_instr(opword),
                 0x4  => self.branch_on_equal_instr(opword),
                 0x5  => self.branch_not_equal_instr(opword),
-                0x0  => self.special_instr(opword),
+                0x8  => self.add_imm_instr(opword),
+                0x9  => self.add_imm_unsigned_instr(opword),
+                0xC  => self.andi_instr(opword),
+                0xD  => self.ori_instr(opword),
+                0xF  => self.lui_instr(opword),
+                0x10 => self.mtc0_instr(opword),
+                0x14 => self.branch_on_equal_likely_instr(opword),
+                0x15 => self.branch_on_not_equal_likely_instr(opword),
+                0x23 => self.load_word_instr(opword),
+                0x2B => self.store_word_instr(opword),
                 _ => panic!("unhandled opcode! {:#x}", opword),
             }
     }
@@ -105,41 +113,64 @@ impl Cpu {
 
     fn shift_right_logical_instr(&mut self, opword: u32){
         println!("SRL instruction!");
+        panic!("unimplemented!");
     }
 
     fn shift_left_logical_instr(&mut self, opword: u32){
         println!("SLL instruction");
+        panic!("unimplemented!");
     }
 
     fn jump_register_instr(&mut self, opword: u32){
         println!("jump register instruction!");
+        panic!("unimplemented!");
     }
 
     fn add_imm_instr(&mut self, opword: u32){
         println!("add imm instruction!");
+
+
+        panic!("unimplemented!");
     }
 
     fn add_imm_unsigned_instr(&mut self, opword: u32){
         println!("add imm unsigned instruction!");
+
+        let imm = ((opword & 0xFFFF) as i32) as u64;
+        let rt = (opword >> 16) & 0x1F;
+        let rs = (opword >> 21) & 0x1F; 
+
+        let contents = self.gpr_regs[rs as usize];
+        self.gpr_regs[rt as usize] = contents + imm;
     }
 
     fn sub_unsigned_instr(&mut self, opword: u32){
         println!("subu instr!");
+        panic!("unimplemented!");
     }
 
     fn load_immediate_instr(&mut self, opword: u32){
         println!("li instruction!");
+        panic!("unimplemented!");
     }
 
     fn store_word_instr(&mut self, opword: u32){
         println!("sw instruction!");
+        let imm = ((opword & 0xFFFF) as i32) as u64;
+        println!("{:#x}", imm);
+        let rt  = (opword >> 16) & 0x1F;
+        let base = (opword >> 21) & 0x1F;
+
+        let virt_addr = self.gpr_regs[base as usize] as u64 + imm;
+        self.write_word(virt_addr, self.gpr_regs[rt as usize] as u32);
     }
 
     fn lui_instr(&mut self, opword : u32){
         println!("lui instruction!");
-        let imm = opword & 0xFFFF;
+        let imm = (opword & 0xFFFF);
         let rt  = (opword >> 16) & 0x1F;
-        self.gpr_regs[rt as usize] = (imm << 16) as u64;
+        let immShift = ((imm << 16) as i32) as u64;
+        self.gpr_regs[rt as usize] = immShift;
     }
 
     fn mtc0_instr(&mut self, opword : u32){
@@ -152,27 +183,30 @@ impl Cpu {
 
     fn mflo_instr(&mut self, opword: u32){
         println!("mflo instr");
+        panic!("unimplemented!");
     }
 
     fn or_instr(&mut self, opword: u32){
         println!("or instruction");
+        panic!("unimplemented!");
     }
 
     fn xor_instr(&mut self, opword: u32){
         println!("xor instruction");
+        panic!("unimplemented!");
     }
 
     fn multiply_unsigned_instr(&mut self, opword: u32){
         println!("MULTU instruction");
+        panic!("unimplemented!");
     }
 
     fn ori_instr(&mut self, opword : u32){
-        println!("ori instruction!");
+        println!("ori instruction! {:#x}", opword);
         let imm = (opword & 0xFFFF) as i32;
         let rt = (opword >> 16) & 0x1F;
         let rs = (opword >> 21) & 0x1F;
         let rs_data = self.gpr_regs[rs as usize];
-        println!("{:#x}", rs_data | imm as u64);
         self.gpr_regs[rt as usize] = rs_data | imm as u64;
     }
 
@@ -191,27 +225,73 @@ impl Cpu {
     }
 
     fn andi_instr(&mut self, opword: u32){
-        println!("andi instruction!");
+        println!("andi instruction! {:#x}", opword);
+        let imm = ((opword & 0xFFFF) as i32);
+
+        let rt = (opword >> 16) & 0x1F;
+        let rs = (opword >> 21) & 0x1F; 
+        let contents = self.gpr_regs[rs as usize];
+        self.gpr_regs[rt as usize] = (imm as u64) & contents;
     }
 
     fn bgez_instr(&mut self, opword: u32){
         println!("bgez instr!");
+        panic!("unimplemented!");
     }
 
     fn branch_on_equal_likely_instr(&mut self, opword: u32){
-        println!("branch on equal likely!");
+        println!("branch on equal likely! {}", opword);
+
+        let offset = opword & 0xFFFF;
+        let offsetShift = ((offset << 16) as i32) >> 14;
+        
+        let rt = (opword >> 16) & 0x1F;
+        let rs = (opword >> 21) & 0x1F;
+
+        if self.gpr_regs[rt as usize] == self.gpr_regs[rs as usize] {
+            // execute next instr then jump
+            let opword = self.read_word(self.reg_pc + 4);
+            self.decode_instruction(opword);
+            self.reg_pc = (offsetShift + 0x4) as u64;
+            self.delay = true;
+        } else{
+            // discard instr in delay slot
+            self.reg_pc += 4;
+        }
     }
 
     fn branch_on_not_equal_likely_instr(&mut self, opword: u32){
         println!("branch on not equal likely!");
+
+        let offset = opword & 0xFFFF;
+        let offsetShift = ((offset << 16) as i32) >> 14;
+        
+        println!("offset {:#x} offset shift {:#x}", offset, offsetShift);
+
+        let rt = (opword >> 16) & 0x1F;
+        let rs = (opword >> 21) & 0x1F;
+
+        println!("rt {} rs {} regs {:?}", rt, rs, self.gpr_regs);
+        if self.gpr_regs[rt as usize] != self.gpr_regs[rs as usize] {
+            // execute next instr then jump
+            let opword = self.read_word(self.reg_pc + 4);
+            self.decode_instruction(opword);
+            self.reg_pc = (offsetShift + 0x4) as u64;
+            self.delay = true;
+        } else{
+            // discard instr in delay slot
+            self.reg_pc += 4;
+        }
     }
 
     fn branch_not_equal_instr(&mut self, opword: u32){
         println!("bne instruction!");
+        panic!("unimplemented!");
     }
 
     fn branch_on_equal_instr(&mut self, opword: u32){
         println!("beq instruction!");
+        panic!("unimplemented!");
     }
 
     fn read_word(&self, addr: u64) -> u32 {
@@ -232,7 +312,7 @@ impl Cpu {
                 //kseg 1
                 virtual_addr - 0xffff_ffff_a000_0000
         }else{
-            panic!("unrecognized virtual addr {:#x}", virtual_addr);
+            panic!("unrecognized virtual addr {:#x} {:#x}", virtual_addr, self.reg_pc);
         }
     }
 }
