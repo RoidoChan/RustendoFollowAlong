@@ -21,8 +21,6 @@ pub struct Cpu {
 
     copro0 : cp0::CP0,
     interconnect: interconnect::Interconnect,
-
-    delay : bool
 }
 
 impl Cpu {
@@ -43,7 +41,6 @@ impl Cpu {
             copro0 : cp0::CP0::new(),
             interconnect: interconnect,
 
-            delay : false
         }
     }
 
@@ -57,12 +54,7 @@ impl Cpu {
         loop {
             let opword = self.read_word(self.reg_pc);
             self.decode_instruction(opword);
-
-            if !self.delay {
-                self.reg_pc += 4;
-            } else{
-                self.delay = false;
-            }
+            self.reg_pc += 4;
         }
     }
 
@@ -157,10 +149,8 @@ impl Cpu {
     fn store_word_instr(&mut self, opword: u32){
         println!("sw instruction!");
         let imm = ((opword & 0xFFFF) as i32) as u64;
-        println!("{:#x}", imm);
         let rt  = (opword >> 16) & 0x1F;
         let base = (opword >> 21) & 0x1F;
-
         let virt_addr = self.gpr_regs[base as usize] as u64 + imm;
         self.write_word(virt_addr, self.gpr_regs[rt as usize] as u32);
     }
@@ -170,7 +160,7 @@ impl Cpu {
         let imm = (opword & 0xFFFF);
         let rt  = (opword >> 16) & 0x1F;
         let immShift = ((imm << 16) as i32) as u64;
-        self.gpr_regs[rt as usize] = immShift;
+        self.gpr_regs[rt as usize] = immShift; 
     }
 
     fn mtc0_instr(&mut self, opword : u32){
@@ -243,8 +233,9 @@ impl Cpu {
         println!("branch on equal likely! {}", opword);
 
         let offset = opword & 0xFFFF;
-        let offsetShift = ((offset << 16) as i32) >> 14;
-        
+        let offset_shift = (((offset << 16) as i32) >> 14) as i64;
+        println!("offset {:} offset shift {:}", offset, offset_shift);
+
         let rt = (opword >> 16) & 0x1F;
         let rs = (opword >> 21) & 0x1F;
 
@@ -252,8 +243,7 @@ impl Cpu {
             // execute next instr then jump
             let opword = self.read_word(self.reg_pc + 4);
             self.decode_instruction(opword);
-            self.reg_pc = (offsetShift + 0x4) as u64;
-            self.delay = true;
+            self.reg_pc = (self.reg_pc as i64 + 4 + offset_shift) as u64;
         } else{
             // discard instr in delay slot
             self.reg_pc += 4;
@@ -264,9 +254,9 @@ impl Cpu {
         println!("branch on not equal likely!");
 
         let offset = opword & 0xFFFF;
-        let offsetShift = ((offset << 16) as i32) >> 14;
+        let offset_shift = (((offset << 16) as i32) >> 14) as i64;
         
-        println!("offset {:#x} offset shift {:#x}", offset, offsetShift);
+        println!("offset {:} offset shift {:}", offset, offset_shift);
 
         let rt = (opword >> 16) & 0x1F;
         let rs = (opword >> 21) & 0x1F;
@@ -276,8 +266,7 @@ impl Cpu {
             // execute next instr then jump
             let opword = self.read_word(self.reg_pc + 4);
             self.decode_instruction(opword);
-            self.reg_pc = (offsetShift + 0x4) as u64;
-            self.delay = true;
+            self.reg_pc = (self.reg_pc as i64 + 4 + offset_shift) as u64;
         } else{
             // discard instr in delay slot
             self.reg_pc += 4;
@@ -312,7 +301,7 @@ impl Cpu {
                 //kseg 1
                 virtual_addr - 0xffff_ffff_a000_0000
         }else{
-            panic!("unrecognized virtual addr {:#x} {:#x}", virtual_addr, self.reg_pc);
+            panic!("unrecognized virtual addr {:#x} {:#x}", addr_bit_values, self.reg_pc);
         }
     }
 }

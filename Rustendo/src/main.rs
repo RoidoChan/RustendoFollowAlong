@@ -3,6 +3,8 @@ mod cp0;
 mod n64;
 mod interconnect;
 mod statusRegister;
+mod mem_map;
+mod rsp;
 
 use std::env;
 use std::fs;
