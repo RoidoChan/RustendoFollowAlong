@@ -21,6 +21,8 @@ pub struct Cpu {
 
     copro0 : cp0::CP0,
     interconnect: interconnect::Interconnect,
+
+    delay : bool
 }
 
 impl Cpu {
@@ -41,6 +43,7 @@ impl Cpu {
             copro0 : cp0::CP0::new(),
             interconnect: interconnect,
 
+            delay : false
         }
     }
 
@@ -54,7 +57,12 @@ impl Cpu {
         loop {
             let opword = self.read_word(self.reg_pc);
             self.decode_instruction(opword);
-            self.reg_pc += 4;
+
+            if !self.delay {
+                self.reg_pc += 4;
+            } else{
+                self.delay = false;
+            }
         }
     }
 
@@ -125,13 +133,19 @@ impl Cpu {
         panic!("unimplemented!");
     }
 
-    fn add_imm_unsigned_instr(&mut self, opword: u32){
-        println!("add imm unsigned instruction!");
-
-        let imm = ((opword & 0xFFFF) as i32) as u64;
+    fn split_opword(&self, opword: u32) -> (u32, u8, u8) {
+        let imm = (opword & 0xFFFF);
         let rt = (opword >> 16) & 0x1F;
         let rs = (opword >> 21) & 0x1F; 
 
+        (imm, rt as u8, rs as u8)
+    }
+
+    fn add_imm_unsigned_instr(&mut self, opword: u32){
+        println!("add imm unsigned instruction!");
+        let (imm, rt, rs) = self.split_opword(opword);
+
+        let imm = (imm as i32) as u64;
         let contents = self.gpr_regs[rs as usize];
         self.gpr_regs[rt as usize] = contents + imm;
     }
@@ -148,19 +162,17 @@ impl Cpu {
 
     fn store_word_instr(&mut self, opword: u32){
         println!("sw instruction!");
-        let imm = ((opword & 0xFFFF) as i32) as u64;
-        let rt  = (opword >> 16) & 0x1F;
-        let base = (opword >> 21) & 0x1F;
+        let (imm, rt, base) = self.split_opword(opword);
+        let imm = (imm as i32) as u64;
         let virt_addr = self.gpr_regs[base as usize] as u64 + imm;
         self.write_word(virt_addr, self.gpr_regs[rt as usize] as u32);
     }
 
     fn lui_instr(&mut self, opword : u32){
         println!("lui instruction!");
-        let imm = (opword & 0xFFFF);
-        let rt  = (opword >> 16) & 0x1F;
-        let immShift = ((imm << 16) as i32) as u64;
-        self.gpr_regs[rt as usize] = immShift; 
+        let (imm, rt, _) = self.split_opword(opword);
+        let imm_shift = ((imm << 16) as i32) as u64;
+        self.gpr_regs[rt as usize] = imm_shift;
     }
 
     fn mtc0_instr(&mut self, opword : u32){
@@ -193,21 +205,19 @@ impl Cpu {
 
     fn ori_instr(&mut self, opword : u32){
         println!("ori instruction! {:#x}", opword);
-        let imm = (opword & 0xFFFF) as i32;
-        let rt = (opword >> 16) & 0x1F;
-        let rs = (opword >> 21) & 0x1F;
+        let (imm, rt, rs) = self.split_opword(opword);
+        let imm = imm as i32;
         let rs_data = self.gpr_regs[rs as usize];
         self.gpr_regs[rt as usize] = rs_data | imm as u64;
     }
 
     fn load_word_instr(&mut self, opword: u32){
-        println!("lw instruction!");
-        let imm = ((opword & 0xFFFF) as i32);
+        println!("lw instruction! {:#x}", opword);
+        let (imm, rt, base) = self.split_opword(opword);
+        let imm = imm as i32;
 
-        let rt = (opword >> 16) & 0x1F;
-        let base = (opword >> 21) & 0x1F; 
-        let regContents = self.gpr_regs[base as usize] as i32;
-        let virt_addr = imm + regContents;
+        let reg_contents = self.gpr_regs[base as usize] as i32;
+        let virt_addr = imm + reg_contents;
         
         let val_to_write = self.read_word(virt_addr as u64);
         self.gpr_regs[rt as usize] = val_to_write as u64;
@@ -216,10 +226,8 @@ impl Cpu {
 
     fn andi_instr(&mut self, opword: u32){
         println!("andi instruction! {:#x}", opword);
-        let imm = ((opword & 0xFFFF) as i32);
-
-        let rt = (opword >> 16) & 0x1F;
-        let rs = (opword >> 21) & 0x1F; 
+        let (imm, rt, rs) = self.split_opword(opword);
+        let imm = imm as i32;
         let contents = self.gpr_regs[rs as usize];
         self.gpr_regs[rt as usize] = (imm as u64) & contents;
     }
@@ -231,19 +239,15 @@ impl Cpu {
 
     fn branch_on_equal_likely_instr(&mut self, opword: u32){
         println!("branch on equal likely! {}", opword);
-
-        let offset = opword & 0xFFFF;
-        let offset_shift = (((offset << 16) as i32) >> 14) as i64;
-        println!("offset {:} offset shift {:}", offset, offset_shift);
-
-        let rt = (opword >> 16) & 0x1F;
-        let rs = (opword >> 21) & 0x1F;
+        let (offset, rt, rs) = self.split_opword(opword);
+        let offset_shift = ((offset << 16) as i32) >> 14;
 
         if self.gpr_regs[rt as usize] == self.gpr_regs[rs as usize] {
             // execute next instr then jump
             let opword = self.read_word(self.reg_pc + 4);
             self.decode_instruction(opword);
-            self.reg_pc = (self.reg_pc as i64 + 4 + offset_shift) as u64;
+            self.reg_pc = (offset_shift + 0x4) as u64;
+            self.delay = true;
         } else{
             // discard instr in delay slot
             self.reg_pc += 4;
@@ -252,21 +256,15 @@ impl Cpu {
 
     fn branch_on_not_equal_likely_instr(&mut self, opword: u32){
         println!("branch on not equal likely!");
+        let (offset, rt, rs) = self.split_opword(opword);
+        let offset_shift = ((offset << 16) as i32) >> 14;
 
-        let offset = opword & 0xFFFF;
-        let offset_shift = (((offset << 16) as i32) >> 14) as i64;
-        
-        println!("offset {:} offset shift {:}", offset, offset_shift);
-
-        let rt = (opword >> 16) & 0x1F;
-        let rs = (opword >> 21) & 0x1F;
-
-        println!("rt {} rs {} regs {:?}", rt, rs, self.gpr_regs);
         if self.gpr_regs[rt as usize] != self.gpr_regs[rs as usize] {
             // execute next instr then jump
             let opword = self.read_word(self.reg_pc + 4);
             self.decode_instruction(opword);
-            self.reg_pc = (self.reg_pc as i64 + 4 + offset_shift) as u64;
+            self.reg_pc = (offset_shift + 0x4) as u64;
+            self.delay = true;
         } else{
             // discard instr in delay slot
             self.reg_pc += 4;
@@ -301,7 +299,7 @@ impl Cpu {
                 //kseg 1
                 virtual_addr - 0xffff_ffff_a000_0000
         }else{
-            panic!("unrecognized virtual addr {:#x} {:#x}", addr_bit_values, self.reg_pc);
+            panic!("unrecognized virtual addr {:#x} {:#x}", virtual_addr, self.reg_pc);
         }
     }
 }

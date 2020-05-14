@@ -19,50 +19,48 @@ enum ConfigBe {
 }
 
 #[derive(Debug)]
-pub struct RegConfig{
-    reg_config_ep: ConfigEp,
-    some_val : u8,
-    reg_config_be: ConfigBe,
-    some_val_two : [bool; 11],
-    CU : bool,
-    K0_cacheUsed : bool 
+pub struct ConfigRegister{
+    contents : u32
 }
 
+const EC_OFFSET : u8 = 28;
+const EP_OFFSET : u8 = 24;
+const BE_OFFSET : u8 = 15;
+const CU_OFFSET : u8 = 2;
+const KO_OFFSET : u8 = 0;
 
-impl RegConfig {
+impl ConfigRegister {
 
-    pub fn new() -> RegConfig{
-       RegConfig{
-        reg_config_ep : ConfigEp::D,
-        some_val : 0x6,
-        reg_config_be : ConfigBe::BigEndian,
-        some_val_two : [true, true, false, false, true, false, false, false, true, true, false],
-        CU: false,
-        K0_cacheUsed : false
+    pub fn new() -> ConfigRegister{
+        ConfigRegister{
+            contents : 0b0_000_0000_00000110_0_1100_1000_110_0_000
        }
     }
 
     pub fn power_on_reset(&mut self) {
-        self.reg_config_ep = ConfigEp::D;
-        self.reg_config_be = ConfigBe::BigEndian;
+        // ep is bits 24:27, 0'ed
+        self.contents = self.contents & (0b0000 << EP_OFFSET);
+        // be is bit 15
+        self.contents = self.contents & (0b0 << BE_OFFSET);
     }
 
     pub fn write(&mut self, data : u32){
-        println!("value passed is {:#034b}", data);
+        println!("written to status reg: {:#b}", data);
+        self.contents = data;
     }
 }
 
 
 #[derive(Debug)]
 pub struct CP0 {
-    reg_config : RegConfig,
+    reg_config : ConfigRegister,
     status_reg : StatusReg
 }
 
 impl CP0 {
     pub fn new() -> CP0 {
         CP0{
-            reg_config : RegConfig::new(),
+            reg_config : ConfigRegister::new(),
             status_reg : StatusReg::new() 
         }
     }

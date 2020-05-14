@@ -22,8 +22,7 @@ impl Interconnect {
         let addr = addr as usize;
 
         let result = match addr {
-        
-            RD_RAM_MEMORY_START..=RD_RAM_MEMORY_END => {
+            0..=0x001F_FFFF => {
                 println!("RD RAM MEM rng 1");
                 0
             },
@@ -35,28 +34,14 @@ impl Interconnect {
 
             PIF_JOYPAD_START..=PIF_JOYPAD_END => {
                 println!("PIF Joypad read");
-                let rel_addr = addr - PIF_JOYPAD_START;
-                BigEndian::read_u32(&self.pif_rom[rel_addr as usize..])
+                0
             },
 
             SP_REGISTER_START..=SP_REGISTER_END => {
                 println!("SP register read {:#x}", addr);
                 // on power up, contains 1
-                let rel_addr = addr - SP_REGISTER_START;
-                //BigEndian::read_u32(&self.pif_rom[rel_addr as usize..])
                 1
             },
-
-            VIDEO_INTERFACE_START..=VIDEO_INTERFACE_END => {
-                println!("video interface read {:#x}", addr);
-                let rel_addr = addr - VIDEO_INTERFACE_START;
-                1
-            },
-
-            PI_REGISTER_START..=PI_REGISTER_END => {
-                println!("PI Register read {:#x}", addr);
-                1
-            }
 
             _=> {
                 panic!("bad physical address {:#x}", addr)
@@ -71,31 +56,13 @@ impl Interconnect {
         let addr = addr as usize;
 
         match addr {
-            RD_RAM_MEMORY_START..=RD_RAM_MEMORY_END => {
-                BigEndian::write_u32(&mut self.ram[addr as usize..], value)
-            },
-
             PIF_ROM_START..=PIF_RAM_START => {
                 let rel_addr = addr - PIF_ROM_START;
                 BigEndian::write_u32(&mut self.ram[rel_addr as usize..], value)
             },
 
             SP_REGISTER_START..=SP_REGISTER_END => {
-                println!("SP register write!{:#x} {}", addr, value);
-                let rel_addr = addr - SP_REGISTER_START;
-                BigEndian::write_u32(&mut self.ram[rel_addr as usize..], value)
-            },
-
-            PI_REGISTER_START..=PI_REGISTER_END => {
-                println!("PI Register write {:#x}. {}", addr, value);
-                let rel_addr = addr - PI_REGISTER_START;
-                BigEndian::write_u32(&mut self.ram[rel_addr as usize..], value)
-            },
-
-            VIDEO_INTERFACE_START..=VIDEO_INTERFACE_END => {
-                println!("video interface write {:#x}, {}", addr, value);
-                let rel_addr = addr - VIDEO_INTERFACE_START;
-                BigEndian::write_u32(&mut self.ram[rel_addr as usize..], value)
+                println!("SP register write!");
             },
 
             _=> panic!("bad physical address {:#x}", addr)

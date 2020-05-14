@@ -1,9 +1,7 @@
-struct Rsp{
-    
-}
+//pub type Rsp = ();
 
-impl Rsp {
-    pub fn read_status_reg() -> u32 {
-       0
-    }
-}
+//impl Rsp {
+ //   pub fn read_status_reg() -> u32 {
+  //      0
+ //   }
+//}
