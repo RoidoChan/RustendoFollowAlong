@@ -18,49 +18,52 @@ enum ConfigBe {
     BigEndian
 }
 
-#[derive(Debug)]
-pub struct ConfigRegister{
-    contents : u32
-}
+mod ConfigRegister{
 
-const EC_OFFSET : u8 = 28;
-const EP_OFFSET : u8 = 24;
-const BE_OFFSET : u8 = 15;
-const CU_OFFSET : u8 = 2;
-const KO_OFFSET : u8 = 0;
-
-impl ConfigRegister {
-
-    pub fn new() -> ConfigRegister{
-        ConfigRegister{
-            contents : 0b0_000_0000_00000110_0_1100_1000_110_0_000
-       }
+    #[derive(Debug)]
+    pub struct ConfigRegister{
+        contents : u32
     }
 
-    pub fn power_on_reset(&mut self) {
-        // ep is bits 24:27, 0'ed
-        self.contents = self.contents & (0b0000 << EP_OFFSET);
-        // be is bit 15
-        self.contents = self.contents & (0b0 << BE_OFFSET);
-    }
+    const EC_OFFSET : u8 = 28;
+    const EP_OFFSET : u8 = 24;
+    const BE_OFFSET : u8 = 15;
+    const CU_OFFSET : u8 = 2;
+    const KO_OFFSET : u8 = 0;
 
-    pub fn write(&mut self, data : u32){
-        println!("written to status reg: {:#b}", data);
-        self.contents = data;
+    impl ConfigRegister {
+
+        pub fn new() -> ConfigRegister{
+            ConfigRegister{
+                contents : 0b0_000_0000_00000110_0_1100_1000_110_0_000
+        }
+        }
+
+        pub fn power_on_reset(&mut self) {
+            // ep is bits 24:27, 0'ed
+            self.contents = self.contents & (0b0000 << EP_OFFSET);
+            // be is bit 15
+            self.contents = self.contents & (0b0 << BE_OFFSET);
+        }
+
+        pub fn write(&mut self, data : u32){
+            println!("written to status reg: {:#b}", data);
+            self.contents = data;
+        }
     }
 }
 
 
 #[derive(Debug)]
 pub struct CP0 {
-    reg_config : ConfigRegister,
+    reg_config : ConfigRegister::ConfigRegister,
     status_reg : StatusReg
 }
 
 impl CP0 {
     pub fn new() -> CP0 {
         CP0{
-            reg_config : ConfigRegister::new(),
+            reg_config : ConfigRegister::ConfigRegister::new(),
             status_reg : StatusReg::new() 
         }
     }
