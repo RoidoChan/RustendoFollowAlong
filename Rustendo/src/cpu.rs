@@ -21,8 +21,6 @@ pub struct Cpu {
 
     copro0 : cp0::CP0,
     interconnect: interconnect::Interconnect,
-
-    delay : bool
 }
 
 impl Cpu {
@@ -42,8 +40,6 @@ impl Cpu {
         
             copro0 : cp0::CP0::new(),
             interconnect: interconnect,
-
-            delay : false
         }
     }
 
@@ -57,12 +53,7 @@ impl Cpu {
         loop {
             let opword = self.read_word(self.reg_pc);
             self.decode_instruction(opword);
-
-            if !self.delay {
-                self.reg_pc += 4;
-            } else{
-                self.delay = false;
-            }
+            self.reg_pc += 4;
         }
     }
 
@@ -142,7 +133,7 @@ impl Cpu {
     }
 
     fn add_imm_unsigned_instr(&mut self, opword: u32){
-        println!("add imm unsigned instruction!");
+        println!("addiu {:#x}", self.reg_pc);
         let (imm, rt, rs) = self.split_opword(opword);
 
         let imm = (imm as i32) as u64;
@@ -161,22 +152,23 @@ impl Cpu {
     }
 
     fn store_word_instr(&mut self, opword: u32){
-        println!("sw instruction!");
+        println!("sw {:#x}", self.reg_pc);
         let (imm, rt, base) = self.split_opword(opword);
         let imm = (imm as i32) as u64;
-        let virt_addr = self.gpr_regs[base as usize] as u64 + imm;
+        let base = self.gpr_regs[base as usize];
+        let virt_addr = imm.wrapping_add(base);
         self.write_word(virt_addr, self.gpr_regs[rt as usize] as u32);
     }
 
     fn lui_instr(&mut self, opword : u32){
-        println!("lui instruction!");
+        println!("lui {:#x}", self.reg_pc);
         let (imm, rt, _) = self.split_opword(opword);
         let imm_shift = ((imm << 16) as i32) as u64;
         self.gpr_regs[rt as usize] = imm_shift;
     }
 
     fn mtc0_instr(&mut self, opword : u32){
-        println!("mtc0 instruction {:#x}", opword);
+        println!("mtc0 {:#x}", self.reg_pc);
         let rt = (opword >> 16) & 0x1F;
         let rd = (opword >> 11) & 0x1F;
         let data = self.gpr_regs[rt as usize];
@@ -204,7 +196,7 @@ impl Cpu {
     }
 
     fn ori_instr(&mut self, opword : u32){
-        println!("ori instruction! {:#x}", opword);
+        println!("ori {:#x}", self.reg_pc);
         let (imm, rt, rs) = self.split_opword(opword);
         let imm = imm as i32;
         let rs_data = self.gpr_regs[rs as usize];
@@ -212,20 +204,18 @@ impl Cpu {
     }
 
     fn load_word_instr(&mut self, opword: u32){
-        println!("lw instruction! {:#x}", opword);
+        println!("lw {:#x}", self.reg_pc);
         let (imm, rt, base) = self.split_opword(opword);
-        let imm = imm as i32;
-
-        let reg_contents = self.gpr_regs[base as usize] as i32;
-        let virt_addr = imm + reg_contents;
+        let imm = (imm as i32) as u64;
+        let reg_contents = self.gpr_regs[base as usize];
+        let virt_addr = imm.wrapping_add(reg_contents);
         
         let val_to_write = self.read_word(virt_addr as u64);
         self.gpr_regs[rt as usize] = val_to_write as u64;
-
     }
 
     fn andi_instr(&mut self, opword: u32){
-        println!("andi instruction! {:#x}", opword);
+        println!("andi {:#x}", self.reg_pc);
         let (imm, rt, rs) = self.split_opword(opword);
         let imm = imm as i32;
         let contents = self.gpr_regs[rs as usize];
@@ -238,7 +228,7 @@ impl Cpu {
     }
 
     fn branch_on_equal_likely_instr(&mut self, opword: u32){
-        println!("branch on equal likely! {}", opword);
+        println!("beql {:#x}", self.reg_pc);
         let (offset, rt, rs) = self.split_opword(opword);
         let offset_shift = ((offset << 16) as i32) >> 14;
 
@@ -247,7 +237,6 @@ impl Cpu {
             let opword = self.read_word(self.reg_pc + 4);
             self.decode_instruction(opword);
             self.reg_pc = (offset_shift + 0x4) as u64;
-            self.delay = true;
         } else{
             // discard instr in delay slot
             self.reg_pc += 4;
@@ -255,16 +244,15 @@ impl Cpu {
     }
 
     fn branch_on_not_equal_likely_instr(&mut self, opword: u32){
-        println!("branch on not equal likely!");
+        println!("beqnl {:#x}", self.reg_pc);
         let (offset, rt, rs) = self.split_opword(opword);
-        let offset_shift = ((offset << 16) as i32) >> 14;
+        let offset_shift = (((offset << 16) as i32) >> 14) as u64;
 
         if self.gpr_regs[rt as usize] != self.gpr_regs[rs as usize] {
             // execute next instr then jump
             let opword = self.read_word(self.reg_pc + 4);
             self.decode_instruction(opword);
-            self.reg_pc = (offset_shift + 0x4) as u64;
-            self.delay = true;
+            self.reg_pc = (self.reg_pc.wrapping_add(offset_shift + 0x4)) as u64;
         } else{
             // discard instr in delay slot
             self.reg_pc += 4;

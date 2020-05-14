@@ -27,21 +27,31 @@ impl Interconnect {
                 0
             },
 
-            PIF_ROM_START..=PIF_RAM_START => {
+            PIF_ROM_START...PIF_RAM_START => {
                 let rel_addr = addr - PIF_ROM_START;
                 BigEndian::read_u32(&self.pif_rom[rel_addr as usize..])
             },
 
-            PIF_JOYPAD_START..=PIF_JOYPAD_END => {
+            PIF_JOYPAD_START...PIF_JOYPAD_END => {
                 println!("PIF Joypad read");
                 0
             },
 
-            SP_REGISTER_START..=SP_REGISTER_END => {
+            SP_REGISTER_START...SP_REGISTER_END => {
                 println!("SP register read {:#x}", addr);
                 // on power up, contains 1
                 1
             },
+
+            PIF_REG_START...PIF_REG_END => {
+                println!("PIF REG READ {:#x}", addr);
+                1
+            }
+
+            VI_REG_START...VI_REG_END => {
+                println!("VI read {:#x}", addr);
+                1
+            }
 
             _=> {
                 panic!("bad physical address {:#x}", addr)
@@ -64,6 +74,14 @@ impl Interconnect {
             SP_REGISTER_START..=SP_REGISTER_END => {
                 println!("SP register write!");
             },
+
+            PIF_REG_START...PIF_REG_END => {
+                println!("PIF REG WRITE {:#x}", addr);
+            },
+
+            VI_REG_START...VI_REG_END => {
+                println!("VI write {:#x}", addr);
+            }
 
             _=> panic!("bad physical address {:#x}", addr)
         }
