@@ -47,7 +47,7 @@ mod ConfigRegister{
         }
 
         pub fn write(&mut self, data : u32){
-            println!("written to status reg: {:#b}", data);
+            println!("written to config reg: {:#b}", data);
             self.contents = data;
         }
     }
