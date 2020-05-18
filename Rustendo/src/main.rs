@@ -5,6 +5,8 @@ mod interconnect;
 mod statusRegister;
 mod mem_map;
 mod rsp;
+mod pif;
+mod video_interface;
 
 use std::env;
 use std::fs;
@@ -26,9 +28,9 @@ fn main() {
     n64.run();
 }
 
-fn load_binary<P: AsRef<Path>>(path : P) -> Vec<u8> {
+fn load_binary<P: AsRef<Path>>(path : P) -> Box<[u8]> {
     let mut file = fs::File::open(path).unwrap();
     let mut file_buf = Vec::new();
     file.read_to_end(&mut file_buf);
-    file_buf
+    file_buf.into_boxed_slice()
 }
